@@ -19,6 +19,7 @@
 # Fortran module files
 *.mod
 *.smod
+/.idea
 
 # Compiled Static libraries
 *.lai
@@ -30,3 +31,13 @@
 *.exe
 *.out
 *.app
+
+# CMake generated files
+cmake-build-debug
+build
+.idea
+.vscode
+
+# MacOS generated files
+.DS_Store
+*/.DS_Store
