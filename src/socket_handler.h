@@ -7,9 +7,11 @@
 
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include "constants.h"
 
 class socket_handler {
 private:
+    int port;
     int socket_fd, sock;
     struct sockaddr_in address;
     int open_socket();
@@ -18,7 +20,15 @@ private:
 public:
     explicit socket_handler(const char * address);
 
-    [[noreturn]] void handle_communication() const;
+    [[noreturn]] void handle_communication();
+
+    ssize_t write_socket_uc(unsigned char *data, int size) const;
+
+    unsigned char *read_socket_uc() const;
+
+    estts::Status write_socket_s(const std::string &data) const;
+
+    std::string read_socket_s() const;
 };
 
 
