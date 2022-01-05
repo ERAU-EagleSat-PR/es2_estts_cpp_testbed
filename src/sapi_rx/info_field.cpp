@@ -17,7 +17,7 @@ using std::string;
  * @return string of bits (e.g. "10010101")
  */
 string info_field::getAddress() {
-    spdlog::trace("Setting info field address to {}", this->telemetry->address);
+    SPDLOG_TRACE("Setting info field address to {}", this->telemetry->address);
     auto address = std::to_string(this->telemetry->address);
     if (this->telemetry->sequence < 10)
         address.insert(0, "0");
@@ -29,7 +29,7 @@ string info_field::getAddress() {
  * @return string of bits (e.g. "10010101")
  */
 string info_field::getTimeStamp() {
-    spdlog::trace("Setting info field timestamp to {}", this->telemetry->timeStamp);
+    SPDLOG_TRACE("Setting info field timestamp to {}", this->telemetry->timeStamp);
     return std::to_string(this->telemetry->timeStamp);
 }
 
@@ -38,7 +38,7 @@ string info_field::getTimeStamp() {
  * @return string of bits (e.g. "10010101")
  */
 string info_field::getSequence() {
-    spdlog::trace("Setting info field frame sequence to {}", this->telemetry->sequence);
+    SPDLOG_TRACE("Setting info field frame sequence to {}", this->telemetry->sequence);
     auto sequence = std::to_string(this->telemetry->sequence);
     if (this->telemetry->sequence < 10)
         sequence.insert(0, "0");
@@ -50,7 +50,7 @@ string info_field::getSequence() {
  * @return string of bits (e.g. "10010101")
  */
 string info_field::getCommandID() {
-    spdlog::trace("Setting info field command ID to {}", this->telemetry->commandID);
+    SPDLOG_TRACE("Setting info field command ID to {}", this->telemetry->commandID);
     auto command_id = std::to_string(this->telemetry->commandID);
     if (this->telemetry->commandID < 10)
         command_id.insert(0, "0");
@@ -62,10 +62,8 @@ string info_field::getCommandID() {
  * @return One bit as a char (e.g. "1")
  */
 string info_field::getRespCode() {
-    spdlog::trace("Setting info field response code to {}", this->telemetry->response_code);
+    SPDLOG_TRACE("Setting info field response code to {}", this->telemetry->response_code);
     auto method = std::to_string(this->telemetry->response_code);
-    if (this->telemetry->response_code < 10)
-        method.insert(0, "0");
     return method;
 }
 
@@ -75,7 +73,7 @@ string info_field::getRespCode() {
  */
 string info_field::getData() {
     if (this->telemetry->data != nullptr) {
-        spdlog::trace("Setting info field data to {}", this->telemetry->data);
+        SPDLOG_TRACE("Setting info field data to {}", this->telemetry->data);
         return reinterpret_cast<char const *>(this->telemetry->data);
     } else return "";
 }
@@ -87,12 +85,12 @@ string info_field::getData() {
 string info_field::build_info_field() {
     std::stringstream infoFieldStream;
     infoFieldStream << getAddress() << getTimeStamp() << getSequence() << getCommandID() << getRespCode() << getData();
-    spdlog::debug("SAPI Info Field encoded to {}", infoFieldStream.str());
+    SPDLOG_DEBUG("SAPI Info Field encoded to {}", infoFieldStream.str());
 
     return infoFieldStream.str();
 }
 
-estts::command_object * info_field::build_command_object(std::string info_field) {
+estts::command_object *info_field::build_command_object(std::string info_field) {
     auto comm = new estts::command_object;
 
     int address;
@@ -112,12 +110,13 @@ estts::command_object * info_field::build_command_object(std::string info_field)
     comm->commandID = command_id;
 
     int method;
-    std::istringstream(info_field.substr(10, 2)) >> method;
+    std::istringstream(info_field.substr(10, 1)) >> method;
     comm->method = method;
 
     // resp->data = info_field.substr(12).c_str(); todo figure this shit out
 
-    spdlog::trace("Frame info field decoded successfully. Command object stored at {}", static_cast<const void*>(comm));
+    SPDLOG_TRACE("Frame info field decoded successfully. Command object stored at {}",
+                  static_cast<const void *>(comm));
 
     return comm;
 }

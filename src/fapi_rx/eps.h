@@ -8,7 +8,7 @@
 #include <vector>
 #include "constants.h"
 
-std::vector<estts::telemetry_object *> process_eps_command(const std::vector<estts::estts_command *>& command);
+std::vector<estts::telemetry_object *> process_eps_command(const std::vector<estts::estts_command *> &command);
 
 std::vector<estts::telemetry_object *> process_get_health();
 

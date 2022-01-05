@@ -4,7 +4,7 @@
 
 #include "eps.h"
 
-std::vector<estts::telemetry_object *> process_eps_command(const std::vector<estts::estts_command *>& command) {
+std::vector<estts::telemetry_object *> process_eps_command(const std::vector<estts::estts_command *> &command) {
     if (command[0]->commandID == estts::es2_commands::eps::EPS_GET_HEALTH)
         return process_get_health();
 }

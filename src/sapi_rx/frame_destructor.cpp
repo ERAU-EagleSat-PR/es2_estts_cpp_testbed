@@ -9,10 +9,10 @@
 #include "helper.h"
 
 estts::Status frame_destructor::decode_frame(const std::string &frame) {
-    spdlog::debug("Found frame: {}", frame);
+    SPDLOG_DEBUG("Found frame: {}", frame);
 
     if (estts::ES_OK != validate_header(frame)) {
-        spdlog::error("Frame validation failed");
+        SPDLOG_ERROR("Frame validation failed");
         return estts::ES_UNSUCCESSFUL;
     }
 
@@ -28,42 +28,42 @@ estts::Status frame_destructor::decode_frame(const std::string &frame) {
 estts::Status frame_destructor::check_source(const std::string &source) {
     if (hex_to_ascii(source) == estts::ax25::AX25_DESTINATION_ADDRESS)
         return estts::ES_OK;
-    spdlog::error("Source: Expected {}; Got {}", estts::ax25::AX25_DESTINATION_ADDRESS, hex_to_ascii(source));
+    SPDLOG_ERROR("Source: Expected {}; Got {}", estts::ax25::AX25_DESTINATION_ADDRESS, hex_to_ascii(source));
     return estts::ES_UNSUCCESSFUL;
 }
 
 estts::Status frame_destructor::check_destination(const std::string &dest) {
     if (hex_to_ascii(dest) == estts::ax25::AX25_SOURCE_ADDRESS)
         return estts::ES_OK;
-    spdlog::error("Destination: Expected {}; Got {}", estts::ax25::AX25_SOURCE_ADDRESS, hex_to_ascii(dest));
+    SPDLOG_ERROR("Destination: Expected {}; Got {}", estts::ax25::AX25_SOURCE_ADDRESS, hex_to_ascii(dest));
     return estts::ES_UNSUCCESSFUL;
 }
 
 estts::Status frame_destructor::check_ssid0(const std::string &ssid) {
     if (ssid == estts::ax25::AX25_SSID0)
         return estts::ES_OK;
-    spdlog::error("SSID0: Expected {}; Got {}", estts::ax25::AX25_SSID0, ssid);
+    SPDLOG_ERROR("SSID0: Expected {}; Got {}", estts::ax25::AX25_SSID0, ssid);
     return estts::ES_UNSUCCESSFUL;
 }
 
 estts::Status frame_destructor::check_ssid1(const std::string &ssid) {
     if (ssid == estts::ax25::AX25_SSID1)
         return estts::ES_OK;
-    spdlog::error("SSID1: Expected {}; Got {}", estts::ax25::AX25_SSID1, ssid);
+    SPDLOG_ERROR("SSID1: Expected {}; Got {}", estts::ax25::AX25_SSID1, ssid);
     return estts::ES_UNSUCCESSFUL;
 }
 
 estts::Status frame_destructor::check_control(const std::string &control) {
     if (control == estts::ax25::AX25_CONTROL)
         return estts::ES_OK;
-    spdlog::error("Control: Expected {}; Got {}", estts::ax25::AX25_CONTROL, control);
+    SPDLOG_ERROR("Control: Expected {}; Got {}", estts::ax25::AX25_CONTROL, control);
     return estts::ES_UNSUCCESSFUL;
 }
 
 estts::Status frame_destructor::check_pid(const std::string &pid) {
     if (pid == estts::ax25::AX25_PID)
         return estts::ES_OK;
-    spdlog::error("PID: Expected {}; Got {}", estts::ax25::AX25_PID, pid);
+    SPDLOG_ERROR("PID: Expected {}; Got {}", estts::ax25::AX25_PID, pid);
     return estts::ES_UNSUCCESSFUL;
 }
 
@@ -85,7 +85,7 @@ estts::Status frame_destructor::validate_header(const std::string &frame) {
         return estts::ES_UNSUCCESSFUL;
     if (estts::ES_OK != check_pid(frame.substr(30, 2)))
         return estts::ES_UNSUCCESSFUL;
-    spdlog::trace("Frame header validated. Continuing");
+    SPDLOG_TRACE("Frame header validated. Continuing");
     return estts::ES_OK;
 }
 
@@ -110,7 +110,7 @@ estts::Status frame_destructor::build_command_objects() {
             unsigned long frame_end;
             for (int i = 0; i < raw_length; i++) {
                 if (i + 1 >= raw_length) {
-                    spdlog::trace("No more frames found.");
+                    SPDLOG_TRACE("No more frames found.");
                     return estts::ES_OK;
                 }
                 if (raw_frame[i] == estts::ax25::AX25_FLAG[0] && raw_frame[i + 1] == estts::ax25::AX25_FLAG[1]) {
@@ -124,7 +124,7 @@ estts::Status frame_destructor::build_command_objects() {
             // Try decoding the frame.
             auto frame = raw_frame.substr(frame_start_flag, frame_end - frame_start_flag);
             if (estts::ES_OK == decode_frame(frame)) {
-                spdlog::trace("Trimming at index {} and looking for more frames", frame_end);
+                SPDLOG_TRACE("Trimming at index {} and looking for more frames", frame_end);
                 raw_frame.erase(0, frame_end);
             } else {
                 // Then, find the start of the frame using the src/dest callsigns. This is a failsafe
@@ -141,7 +141,7 @@ estts::Status frame_destructor::build_command_objects() {
         }
     }
     catch (const std::exception &e) {
-        spdlog::error("Failed to find frame, found exception {}", e.what());
+        SPDLOG_ERROR("Failed to find frame, found exception {}", e.what());
         return estts::ES_UNSUCCESSFUL;
     }
 }

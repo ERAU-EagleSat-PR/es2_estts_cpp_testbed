@@ -13,12 +13,14 @@ class socket_handler {
 private:
     int port;
     int socket_fd, sock;
-    struct sockaddr_in address;
+    struct sockaddr_in address{};
+
     int open_socket();
+
     int configure_socket();
 
 public:
-    explicit socket_handler(const char * address);
+    explicit socket_handler(int address);
 
     [[noreturn]] void handle_communication();
 
@@ -29,6 +31,8 @@ public:
     estts::Status write_socket_s(const std::string &data) const;
 
     std::string read_socket_s() const;
+
+    ~socket_handler();
 };
 
 

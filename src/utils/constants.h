@@ -5,6 +5,8 @@
 #ifndef ESTTS_CONSTANTS_H
 #define ESTTS_CONSTANTS_H
 
+#define SPDLOG_ACTIVE_LEVEL 0
+
 #define MAX_SERIAL_READ 256
 namespace estts {
     const int ESTTS_MAX_RETRIES = 2;
@@ -19,6 +21,12 @@ namespace estts {
         const char AX25_SSID1[] = "E1";
         const char AX25_CONTROL[] = "03"; // 03 = Unnumbered Information
         const char AX25_PID[] = "F0"; // F0 = No layer 3 protocol implemented
+    }
+
+    namespace estts_response_code {
+        const int SUCCESS = 0;
+        const int UNRECOGNIZED_REQUEST = 1;
+        const int OBC_FAILURE = 2;
     }
 
     /* Endpoint names for all communication systems */
@@ -61,8 +69,8 @@ namespace estts {
             const int OBC_GET_HEALTH = 01;
         }
         namespace method {
-            const int ES_READ = 72; // ASCII 'r'
-            const int ES_WRITE = 77; // ASCII 'w'
+            const int ES_READ = 0;
+            const int ES_WRITE = 1;
         }
     }
 
@@ -71,6 +79,7 @@ namespace estts {
         const int WAIT_TIME_SEC = 2;
         const int ES_BAUD = 115200;
         const int MAX_ES_TXVR_TEMP = 50;
+
         class esttc {
         public:
             const char *HEADER = "ES+";

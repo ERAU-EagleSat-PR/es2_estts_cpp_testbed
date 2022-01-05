@@ -12,7 +12,7 @@
  * @param in ASCII string for conversion
  * @return HEX string characters
  */
-std::string ascii_to_hex(const std::string& in);
+std::string ascii_to_hex(const std::string &in);
 
 /**
  * Convert HEX string to ASCII string. Borrowed from
@@ -20,6 +20,6 @@ std::string ascii_to_hex(const std::string& in);
  * @param hex HEX string characters for conversion
  * @return ASCII string
  */
-std::string hex_to_ascii(const std::string& hex);
+std::string hex_to_ascii(const std::string &hex);
 
 #endif //ESTTS_HELPER_H

@@ -19,17 +19,20 @@
 #include "frame_constructor.h"
 #include "spdlog/spdlog.h"
 
-#define __TI_SOCKET_PORT__ 8080
 #define SOCKET_BUF_SZ 1024
 
-socket_handler::socket_handler(const char * address) {
-    port = __TI_SOCKET_PORT__;
+socket_handler::socket_handler(int port) {
+    this->port = port;
+    sock = socket_fd = -1;
+
+    SPDLOG_DEBUG("Initializing ESTTS Testbed Socket Server");
+
     if (0 != open_socket()) {
-        perror("Failed to open socket.");
+        SPDLOG_ERROR("Failed to open socket.");
         throw std::runtime_error("Failed to open socket.");
     }
-    if (0 != configure_socket()){
-        perror("Failed to configure socket.");
+    if (0 != configure_socket()) {
+        SPDLOG_ERROR("Failed to configure socket.");
         throw std::runtime_error("Failed to configure socket.");
     }
 }
@@ -37,31 +40,29 @@ socket_handler::socket_handler(const char * address) {
 int socket_handler::open_socket() {
     // Creating socket file descriptor
     if ((socket_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-        printf("Error %d from socket(): %s", errno, strerror(errno));
+        SPDLOG_ERROR("Error {} from socket(): {}", errno, strerror(errno));
         return -1;
     }
+    SPDLOG_TRACE("Opened socket with fd {}", socket_fd);
     return 0;
 }
 
 int socket_handler::configure_socket() {
     address.sin_family = AF_INET;
     address.sin_addr.s_addr = INADDR_ANY;
-    address.sin_port = htons( __TI_SOCKET_PORT__ );
+    address.sin_port = htons(port);
 
     // Forcefully attaching socket to the port 8080
-    if (bind(socket_fd, (struct sockaddr *)&address,
-             sizeof(address))<0)
-    {
-        printf("Error %d from bind(): %s", errno, strerror(errno));
+    if (bind(socket_fd, (struct sockaddr *) &address,
+             sizeof(address)) < 0) {
+        SPDLOG_ERROR("Error {} from bind(): {}", errno, strerror(errno));
         return -1;
     }
-    if (listen(socket_fd, 3) < 0)
-    {
-        printf("Error %d from listen(): %s", errno, strerror(errno));
+    if (listen(socket_fd, 3) < 0) {
+        SPDLOG_ERROR("Error {} from listen(): {}", errno, strerror(errno));
         return -1;
     }
-
-    std::cout << "Socket listening on port " << port << std::endl;
+    SPDLOG_INFO("Socket listening on port {}", port);
     return 0;
 }
 
@@ -81,7 +82,7 @@ ssize_t socket_handler::write_socket_uc(unsigned char *data, int size) const {
     if (written < 1) {
         return -1;
     }
-    spdlog::trace("Wrote '{}' (size={}) to {}", data, written, port);
+    SPDLOG_TRACE("Wrote '{}' (size={}) to {}", data, written, port);
     return written;
 }
 
@@ -108,7 +109,7 @@ unsigned char *socket_handler::read_socket_uc() const {
     }
     // Add null terminator at the end of transmission for easier processing by parent class(s)
     buf[r] = '\0';
-    spdlog::trace("Read '{}' from {}", buf, port);
+    SPDLOG_TRACE("Read '{}' from {}", buf, port);
     return buf;
 }
 
@@ -152,28 +153,24 @@ std::string socket_handler::read_socket_s() const {
 [[noreturn]] void socket_handler::handle_communication() {
     using namespace std::this_thread; // sleep_for, sleep_until
     using namespace std::chrono; // nanoseconds, system_clock, seconds
-    for ( ; ; ) {
+    for (;;) {
         int addrlen = sizeof(address);
         char buffer[SOCKET_BUF_SZ] = {0};
-        if ((sock = accept(socket_fd, (struct sockaddr *)&address,
-                           (socklen_t*)&addrlen))<0)
-        {
+        if ((sock = accept(socket_fd, (struct sockaddr *) &address,
+                           (socklen_t *) &addrlen)) < 0) {
             printf("Error %d from accept(): %s", errno, strerror(errno));
             return;
         }
-        spdlog::trace("Waiting for handshake");
-        read( sock , buffer, SOCKET_BUF_SZ);
-        spdlog::trace("Got {}", buffer );
-        send(sock , buffer , strlen(buffer) , 0 );
-        spdlog::trace("Handshake complete");
+        SPDLOG_TRACE("Waiting for handshake");
+        read(sock, buffer, SOCKET_BUF_SZ);
+        SPDLOG_TRACE("Got {}", buffer);
+        send(sock, buffer, strlen(buffer), 0);
+        SPDLOG_TRACE("Handshake complete");
 
         std::string raw;
         while ((raw = read_socket_s()).empty()) {
             break;
         }
-
-        printf("%s\n",raw.c_str());
-        // sleep_until(system_clock::now() + seconds(2));
 
         auto command_destructor = new frame_destructor(raw);
         auto command = command_destructor->destruct_ax25();
@@ -183,11 +180,17 @@ std::string socket_handler::read_socket_s() const {
         auto telem = telem_handle->process_command();
         delete telem_handle;
 
-        for (auto & i : telem) {
+        sleep_until(system_clock::now() + seconds(2));
+
+        for (auto &i: telem) {
             auto constructor = new frame_constructor(i);
             auto frame = constructor->construct_ax25();
             this->write_socket_s(frame);
         }
         close(sock);
     }
+}
+
+socket_handler::~socket_handler() {
+    close(socket_fd);
 }

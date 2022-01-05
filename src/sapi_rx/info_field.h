@@ -31,7 +31,7 @@ protected:
     /* Encoded Information Field Getter */
     std::string build_info_field();
 
-    estts::command_object * build_command_object(std::string info_field);
+    estts::command_object *build_command_object(std::string info_field);
 
     explicit info_field() : telemetry(nullptr) {}
 
