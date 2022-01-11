@@ -154,6 +154,8 @@ std::string socket_handler::read_socket_s() const {
     using namespace std::this_thread; // sleep_for, sleep_until
     using namespace std::chrono; // nanoseconds, system_clock, seconds
     for (;;) {
+start:
+        SPDLOG_INFO("Waiting for new connections");
         int addrlen = sizeof(address);
         char buffer[SOCKET_BUF_SZ] = {0};
         if ((sock = accept(socket_fd, (struct sockaddr *) &address,
@@ -167,26 +169,42 @@ std::string socket_handler::read_socket_s() const {
         send(sock, buffer, strlen(buffer), 0);
         SPDLOG_TRACE("Handshake complete");
 
-        std::string raw;
-        while ((raw = read_socket_s()).empty()) {
-            break;
+        while (true) {
+            std::string raw;
+            int elapsed = 0;
+            do {
+                if (elapsed >= estts::ti_socket::MAX_RETRIES) {
+                    SPDLOG_WARN("Didn't receive a packet within max wait time ({} sec). Closing connection.", estts::ti_socket::WAIT_TIME_SEC * estts::ti_socket::MAX_RETRIES);
+                    close(sock);
+                    goto start;
+                }
+                elapsed++;
+                sleep_until(system_clock::now() + seconds(estts::ti_socket::WAIT_TIME_SEC));
+            }
+            while ((raw = read_socket_s()).empty());
+
+            if (raw == "close")
+                break;
+
+            auto command_destructor = new frame_destructor(raw);
+            auto command = command_destructor->destruct_ax25();
+            delete command_destructor;
+
+            auto telem_handle = new telemetry_handler(command);
+            auto telem = telem_handle->process_command();
+            delete telem_handle;
+
+            sleep_until(system_clock::now() + seconds(2));
+
+            for (auto &i: telem) {
+                auto constructor = new frame_constructor(i);
+                auto frame = constructor->construct_ax25();
+                this->write_socket_s(frame);
+                delete i;
+            }
         }
 
-        auto command_destructor = new frame_destructor(raw);
-        auto command = command_destructor->destruct_ax25();
-        delete command_destructor;
-
-        auto telem_handle = new telemetry_handler(command);
-        auto telem = telem_handle->process_command();
-        delete telem_handle;
-
-        sleep_until(system_clock::now() + seconds(2));
-
-        for (auto &i: telem) {
-            auto constructor = new frame_constructor(i);
-            auto frame = constructor->construct_ax25();
-            this->write_socket_s(frame);
-        }
+        SPDLOG_INFO("Closing connection");
         close(sock);
     }
 }
