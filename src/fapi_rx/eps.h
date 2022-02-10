@@ -12,4 +12,6 @@ std::vector<estts::telemetry_object *> process_eps_command(const std::vector<est
 
 std::vector<estts::telemetry_object *> process_get_health();
 
+std::vector<estts::telemetry_object *> process_get_voltage();
+
 #endif //ES2_ESTTS_CPP_TESTBED_EPS_H
