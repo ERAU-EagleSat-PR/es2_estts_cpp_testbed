@@ -9,6 +9,24 @@ std::vector<estts::telemetry_object *> process_eps_command(const std::vector<est
         return process_get_health();
     else if (command[0]->commandID == estts::es2_commands::eps::EPS_VOLTAGE)
         return process_get_voltage();
+    else if (command[0]->commandID == estts::es2_commands::eps::EPS_GET_BATTERY_CURRENT)
+        return process_get_battery_current();
+
+}
+
+std::vector<estts::telemetry_object *> process_get_battery_current() {
+    auto telem = new estts::telemetry_object;
+
+    telem->commandID = estts::es2_commands::eps::EPS_GET_BATTERY_CURRENT;
+    telem->response_code = 00;
+    telem->address = estts::es2_endpoint::ES_EPS;
+    telem->sequence = 00;
+    telem->timeStamp = 8457;
+
+    std::vector<estts::telemetry_object *> telemetry;
+    telemetry.push_back(telem);
+
+    return telemetry;
 }
 
 std::vector<estts::telemetry_object *> process_get_health() {

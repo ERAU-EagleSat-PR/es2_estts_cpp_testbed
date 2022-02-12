@@ -14,4 +14,6 @@ std::vector<estts::telemetry_object *> process_get_health();
 
 std::vector<estts::telemetry_object *> process_get_voltage();
 
+std::vector<estts::telemetry_object *> process_get_battery_current();
+
 #endif //ES2_ESTTS_CPP_TESTBED_EPS_H

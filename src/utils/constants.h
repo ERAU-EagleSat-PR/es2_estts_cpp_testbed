@@ -59,6 +59,7 @@ namespace estts {
         namespace eps {
             const int EPS_GET_HEALTH = 01;
             const int EPS_VOLTAGE = 1;
+            const int EPS_GET_BATTERY_CURRENT = 2;
         }
         namespace mde {
             const int MDE_GET_STATUS = 01;
