@@ -36,7 +36,7 @@ target_include_directories(
         ${include_directories}
 )
 
-target_link_libraries(estts-testbed PUBLIC spdlog::spdlog)
+target_link_libraries(estts-testbed PRIVATE spdlog::spdlog)
 
 if (BUILD_DEBUG)
     target_compile_definitions(
