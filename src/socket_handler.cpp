@@ -5,10 +5,10 @@
 #include <chrono>
 #include <thread>
 #include <stdexcept>
-#include <iostream>
 #include <unistd.h>
 #include <cstdio>
 #include <sys/socket.h>
+#include <fcntl.h>
 #include <cstdlib>
 #include <netinet/in.h>
 #include <cstring>
@@ -18,6 +18,9 @@
 #include "telemetry_handler.h"
 #include "frame_constructor.h"
 #include "spdlog/spdlog.h"
+
+using namespace std::this_thread; // sleep_for, sleep_until
+using namespace std::chrono; // nanoseconds, system_clock, seconds
 
 #define SOCKET_BUF_SZ 1024
 
@@ -75,13 +78,15 @@ int socket_handler::configure_socket() {
  */
 ssize_t socket_handler::write_socket_uc(unsigned char *data, int size) const {
     // If serial port isn't open, error out
-    if (sock < 0) {
+    if (sock < 0){
         return -1;
     }
-    ssize_t written = send(sock, data, size, 0);
+    ssize_t written;
+    written = send(sock, data, size, 0);
     if (written < 1) {
         return -1;
     }
+
     SPDLOG_TRACE("Wrote '{}' (size={}) to {}", data, written, port);
     return written;
 }
@@ -102,15 +107,20 @@ unsigned char *socket_handler::read_socket_uc() const {
     // Allocate heap space for receive buffer
     auto buf = new unsigned char[estts::ti_socket::TI_SOCKET_BUF_SZ];
     // Use read system call to read data in sock to buf
-    auto r = read(sock, buf, estts::ti_socket::TI_SOCKET_BUF_SZ);
-    if (r < 1) {
-        // Can't receive a negative number of bytes ;)
-        return nullptr;
+    try {
+        auto r = read(sock, buf, estts::ti_socket::TI_SOCKET_BUF_SZ);
+        if (r < 1) {
+            // Can't receive a negative number of bytes ;)
+            return nullptr;
+        }
+        // Add null terminator at the end of transmission for easier processing by parent class(s)
+        buf[r] = '\0';
+        SPDLOG_TRACE("Read '{}' from {}", buf, port);
+        return buf;
+    } catch (const std::exception &e) {
+        SPDLOG_ERROR("Failed to write to socket: {}", e.what());
     }
-    // Add null terminator at the end of transmission for easier processing by parent class(s)
-    buf[r] = '\0';
-    SPDLOG_TRACE("Read '{}' from {}", buf, port);
-    return buf;
+    return nullptr;
 }
 
 /**
@@ -151,64 +161,121 @@ std::string socket_handler::read_socket_s() const {
 
 
 [[noreturn]] void socket_handler::handle_communication() {
-    using namespace std::this_thread; // sleep_for, sleep_until
-    using namespace std::chrono; // nanoseconds, system_clock, seconds
     for (;;) {
 start:
-        SPDLOG_INFO("Waiting for new connections");
-        int addrlen = sizeof(address);
-        char buffer[SOCKET_BUF_SZ] = {0};
-        if ((sock = accept(socket_fd, (struct sockaddr *) &address,
-                           (socklen_t *) &addrlen)) < 0) {
-            printf("Error %d from accept(): %s", errno, strerror(errno));
+        if (estts::ES_OK != await_connection()) {
             return;
         }
-        SPDLOG_TRACE("Waiting for handshake");
-        read(sock, buffer, SOCKET_BUF_SZ);
-        SPDLOG_TRACE("Got {}", buffer);
-        send(sock, buffer, strlen(buffer), 0);
-        SPDLOG_TRACE("Handshake complete");
 
-        while (true) {
-            std::string raw;
-            int elapsed = 0;
-            do {
-                if (elapsed >= estts::ti_socket::MAX_RETRIES) {
-                    SPDLOG_WARN("Didn't receive a packet within max wait time ({} sec). Closing connection.", estts::ti_socket::WAIT_TIME_SEC * estts::ti_socket::MAX_RETRIES);
-                    close(sock);
-                    goto start;
-                }
-                elapsed++;
-                sleep_until(system_clock::now() + seconds(estts::ti_socket::WAIT_TIME_SEC));
-            }
-            while ((raw = read_socket_s()).empty());
+await:  // If this returns, we have a session. If it doesn't, client probably seg faulted :/
+        if (estts::ES_OK != await_session())
+            goto start;
 
-            if (raw == "close")
-                break;
-
-            auto command_destructor = new frame_destructor(raw);
-            auto command = command_destructor->destruct_ax25();
-            delete command_destructor;
-
-            auto telem_handle = new telemetry_handler(command);
-            auto telem = telem_handle->process_command();
-            delete telem_handle;
-
-            sleep_until(system_clock::now() + seconds(2));
-
-            for (auto &i: telem) {
-                auto constructor = new frame_constructor(i);
-                auto frame = constructor->construct_ax25();
-                this->write_socket_s(frame);
-                delete i;
-            }
+        auto resp = handle_session();
+        if (resp == estts::ES_SESSION_CLOSED) {
+            SPDLOG_INFO("Closing connection");
+            shutdown(sock, SHUT_WR);
+            goto start;
         }
-
-        SPDLOG_INFO("Closing connection");
-        close(sock);
+        else if (resp == estts::ES_OK)
+            goto await;
     }
 }
 
 socket_handler::~socket_handler() {
     close(socket_fd);
+}
+
+estts::Status socket_handler::transmit_telem(const std::vector<estts::estts_telemetry *>& telem) const {
+    for (auto &i: telem) {
+        auto constructor = new frame_constructor(i);
+        auto frame = constructor->construct_ax25();
+        if (estts::ES_OK != this->write_socket_s(frame)) {
+            return estts::ES_UNSUCCESSFUL;
+        }
+        delete i;
+        sleep_until(system_clock::now() + milliseconds (200));
+    }
+    return estts::ES_OK;
+}
+
+estts::Status socket_handler::await_session() {
+    std::string buffer;
+    do {
+        SPDLOG_DEBUG("No handshake currently present, sending stream.");
+        auto temp_telem = telemetry_handler();
+        auto frames = temp_telem.grab_telem_stream();
+
+        if (estts::ES_OK != transmit_telem(frames))
+            SPDLOG_ERROR("Stream transmission failed");
+
+        SPDLOG_TRACE("Stream transmission finished");
+        sleep_until(system_clock::now() + seconds(5));
+    }
+    while ((buffer = read_socket_s()).empty());
+
+    SPDLOG_TRACE("Got {}", buffer);
+    if (buffer != estts::ax25::NEW_SESSION_FRAME) {
+        SPDLOG_WARN("Error on client side.");
+        SPDLOG_INFO("Closing connection");
+        shutdown(sock, SHUT_WR);
+        return estts::ES_UNSUCCESSFUL;
+    }
+    write_socket_s(buffer);
+    SPDLOG_TRACE("Handshake complete");
+    return estts::ES_OK;
+}
+
+estts::Status socket_handler::handle_session() {
+    while (true) {
+        std::string raw;
+        int elapsed = 0;
+        do {
+            if (elapsed >= estts::ti_socket::MAX_RETRIES) {
+                // If we don't receive an end frame within the max wait time, don't exit return back to sending telemetry
+                SPDLOG_WARN("Didn't receive a packet within max wait time ({} sec). Closing connection.", estts::ti_socket::WAIT_TIME_SEC * estts::ti_socket::MAX_RETRIES);
+                close(sock);
+                return estts::ES_OK;
+            }
+            elapsed++;
+            sleep_until(system_clock::now() + seconds(estts::ti_socket::WAIT_TIME_SEC));
+        }
+        while ((raw = read_socket_s()).empty());
+
+        if (raw == estts::ax25::END_SESSION_FRAME) {
+            // If we get an end session frame, we don't want the socket to close.
+            write_socket_s(raw);
+            return estts::ES_OK;
+        } else if (raw == "close") {
+            // If we get close, ESTTS called the session handler destructor
+            return estts::ES_SESSION_CLOSED;
+        }
+
+        auto command_destructor = new frame_destructor(raw);
+        auto command = command_destructor->destruct_ax25();
+        delete command_destructor;
+
+        auto telem_handle = new telemetry_handler(command);
+        auto telem = telem_handle->process_command();
+        delete telem_handle;
+
+        transmit_telem(telem);
+    }
+}
+
+estts::Status socket_handler::await_connection() {
+    int addrlen = sizeof(address);
+    SPDLOG_INFO("Waiting for new connections");
+    if ((sock = accept(socket_fd, (struct sockaddr *) &address,
+                       (socklen_t *) &addrlen)) < 0) {
+        printf("Error %d from accept(): %s", errno, strerror(errno));
+        return estts::ES_UNSUCCESSFUL;
+    }
+    int flags = fcntl(sock, F_GETFL, 0);
+    fcntl(sock, F_SETFL, flags | O_NONBLOCK);
+
+    // ESTTC socket handler should send 'flush'
+    do {} while (read_socket_s().empty());
+
+    return estts::ES_OK;
 }
