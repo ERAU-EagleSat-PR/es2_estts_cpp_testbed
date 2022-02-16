@@ -14,8 +14,11 @@ private:
 
 public:
     explicit telemetry_handler(std::vector<estts::estts_command *> command);
+    telemetry_handler();
 
     std::vector<estts::telemetry_object *> process_command();
+
+    std::vector<estts::telemetry_object *> grab_telem_stream();
 };
 
 

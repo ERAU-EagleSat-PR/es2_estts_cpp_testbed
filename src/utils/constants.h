@@ -21,6 +21,9 @@ namespace estts {
         const char AX25_SSID1[] = "E1";
         const char AX25_CONTROL[] = "03"; // 03 = Unnumbered Information
         const char AX25_PID[] = "F0"; // F0 = No layer 3 protocol implemented
+
+        const char NEW_SESSION_FRAME[] = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+        const char END_SESSION_FRAME[] = "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB";
     }
 
     namespace estts_response_code {
@@ -46,6 +49,7 @@ namespace estts {
         ES_SUCCESS = 0,
         ES_UNSUCCESSFUL = 1,
         ES_UNINITIALIZED = 2,
+        ES_SESSION_CLOSED = 3,
         ES_BAD_OPTION = 405,
         ES_UNAUTHORIZED = 403
     };
@@ -98,7 +102,7 @@ namespace estts {
 
     namespace ti_socket {
         const int MAX_RETRIES = 2;
-        const int WAIT_TIME_SEC = 2;
+        const int WAIT_TIME_SEC = 4;
         const int TI_SOCKET_PORT = 8080;
         const int TI_SOCKET_BUF_SZ = 1024;
     }

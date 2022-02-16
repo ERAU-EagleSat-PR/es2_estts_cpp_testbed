@@ -6,6 +6,7 @@
 #define ESTTS_TI_SOCKET_HANDLER_H
 
 #include <sys/socket.h>
+#include <vector>
 #include <netinet/in.h>
 #include "constants.h"
 
@@ -24,6 +25,12 @@ public:
 
     [[noreturn]] void handle_communication();
 
+    estts::Status await_connection();
+
+    estts::Status await_session();
+
+    estts::Status handle_session();
+
     ssize_t write_socket_uc(unsigned char *data, int size) const;
 
     unsigned char *read_socket_uc() const;
@@ -31,6 +38,8 @@ public:
     estts::Status write_socket_s(const std::string &data) const;
 
     std::string read_socket_s() const;
+
+    estts::Status transmit_telem(const std::vector<estts::estts_telemetry *>& telem) const;
 
     ~socket_handler();
 };
