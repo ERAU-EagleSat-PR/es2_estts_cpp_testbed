@@ -12,7 +12,7 @@ set(
         sapi_rx/frame_destructor.cpp
         sapi_rx/info_field.cpp
         utils/helper.cpp
-)
+        fapi_rx/acs.cpp fapi_rx/acs.h)
 
 set(
         include_directories
