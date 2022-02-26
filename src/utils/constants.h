@@ -64,8 +64,8 @@ namespace estts {
             const int ACS_SET_MAG_MNT_MTRX = 34;
             const int ACS_SET_INERTIA = 41;
             const int ACS_SAVE_CONFIG = 63;
-            const int ACS_SET_ATT_ANG = 146;
-            const int ACS_SET_ANG_RATE = 147;
+            const int ACS_EST_ATT_ANG = 146;
+            const int ACS_EST_ANG_RATE = 147;
             const int ACS_GET_MAGNET = 151;
             const int ACS_RATE_SENSE_RATE = 155;
             const int ACS_SET_MAGNETORQUER = 157;

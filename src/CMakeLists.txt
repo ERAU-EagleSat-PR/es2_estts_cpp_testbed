@@ -12,7 +12,7 @@ set(
         sapi_rx/frame_destructor.cpp
         sapi_rx/info_field.cpp
         utils/helper.cpp
-)
+        fapi_rx/acs.cpp fapi_rx/acs.h)
 
 set(
         include_directories
@@ -27,7 +27,7 @@ set(estts_include_directories ${include_directories} PARENT_SCOPE)
 # Configure build targets
 add_library(
         estts-testbed
-        SHARED
+        STATIC
         ${estts-testbed-src}
 )
 target_include_directories(
@@ -36,7 +36,7 @@ target_include_directories(
         ${include_directories}
 )
 
-target_link_libraries(estts-testbed PRIVATE spdlog::spdlog)
+target_link_libraries(estts-testbed PUBLIC spdlog::spdlog)
 
 if (BUILD_DEBUG)
     target_compile_definitions(
